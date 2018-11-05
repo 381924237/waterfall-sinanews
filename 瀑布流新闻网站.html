@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>瀑布流新闻网站</title>
+  <script src="https://cdn.bootcss.com/jquery/2.2.4/jquery.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    .wrap {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    #load {
+      visibility: hidden;
+    }
+    #list-ct{
+      list-style: none;
+      position: relative;
+    }
+    #list-ct .item {
+      position: absolute;
+      width: 280px;
+      border: 1px solid #ddd;
+      margin: 5px;
+      padding: 10px;
+    }
+    .item img {
+      width: 100%;
+    }
+    .hide {
+      display: none;
+    }
+
+    .item h4 {
+      border-bottom: 1px solid #ddd;
+      padding: 10px;
+    }
+
+    .item p {
+      padding: 10px;
+      font-size: 15px;
+      color: #3f3f3f;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="ct-waterfall">
+      <ul id="list-ct">
+        <!-- <li class="item">
+          <a href="">
+            <img src="" alt="">
+          </a>
+          <h4>标题</h4>
+          <p>内容</p>
+        </li> -->
+        <li class="item hide"></li>
+      </ul>
+
+      <div id="load">hide</div>
+    </div>
+  </div>
+
+  <script>
+    let sinaNews = {
+      init: function(){
+        this.curPage = 1
+        this.perPageCount = 10
+        this.nodeWidth = $('.item').outerWidth(true)
+        this.colCount = Math.floor($('#list-ct').width()/this.nodeWidth)
+        this.colHeightArray = []
+        this.isDataArrive = true
+        for(let i = 0; i < this.colCount; i++){
+          this.colHeightArray[i] = 0
+        }
+        this.bind()
+        this.start()
+      },
+      bind: function(){
+        let _this = this
+        $(window).scroll(function(){
+          if(!_this.isDataArrive) return
+          if( _this.isVisible($('#load')) ) {
+            _this.start()
+          }
+        })
+      },
+      start: function(){
+        let _this = this
+        this.getData(function(newList){
+          // console.log(newList)
+          _this.isDataArrive = true
+          $.each(newList,function(inx,news){
+            let $node = _this.getNode(news)
+            $node.find('img').load(function(){
+              $('#list-ct').append($node)
+              _this.render($node)
+            })
+          })
+        })
+        _this.isDataArrive = false
+      },
+      getData: function(callback){
+        let _this = this
+        $.ajax({
+          url: 'http://platform.sina.com.cn/slide/album_tech',
+          dataType: 'jsonp',
+          jsonp: 'jsoncallback',
+          data: {
+            app_key: '1271687855',
+            num: this.perPageCount, 
+            page: this.curPage 
+          }
+        }).done(function(ret){
+          if(ret && ret.status && ret.status.code === '0'){
+            callback(ret.data)
+            _this.curPage++
+          }else{
+            console.log('error...')
+          }
+        })
+      },
+      render: function($node){
+        let minValue = this.colHeightArray[0]
+        let minIndex = 0
+        for(let i = 0; i < this.colCount; i++){
+          if(this.colHeightArray[i] < minValue){
+            minValue = this.colHeightArray[i]
+            minIndex = i
+          }
+        }
+        $node.css({
+          left: minIndex * this.nodeWidth, 
+          top: minValue
+        })
+        this.colHeightArray[minIndex] += $node.outerHeight(true) 
+        $('#list-ct').height(Math.max.apply(null,this.colHeightArray))
+      },
+      getNode: function(item){
+        let tpl = `<li class="item">
+                  <a href="">
+                    <img src="" alt="">
+                  </a>
+                  <h4 class="header">标题</h4>
+                  <p class="detail">内容</p>
+                 </li>`
+        $node = $(tpl)
+        $node.find('a').attr('hred',item.url)
+        $node.find('img').attr('src',item.img_url)
+        $node.find('.header').text(item.short_name)
+        $node.find('.detail').text(item.name)           
+        return $node    
+      },
+      isVisible: function($el){
+        return $el.offset().top < $(window).height() + $(window).scrollTop()
+      }
+
+    }
+
+    sinaNews.init()
+
+
+
+
+
+  </script>
+</body>
+</html>
